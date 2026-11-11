@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>กระดานห้องทดลองน้อย 🧪</title>
+<link href="https://fonts.googleapis.com/css2?family=Mali:wght@400;600&family=Itim&display=swap" rel="stylesheet">
+<style>
+:root{--p:#b9a4f0;--pd:#7f67c9;--ink:#4b3f72;--soft:#f3ecff}
+*{box-sizing:border-box;font-family:'Mali','Itim',sans-serif}
+[hidden]{display:none!important}
+body{margin:0;height:100vh;display:flex;flex-direction:column;overflow:hidden;color:var(--ink);background:linear-gradient(160deg,#efe6ff,#fde8f4)}
+button,input,select,textarea{font-size:15px;color:var(--ink)}
+button{border:2px solid var(--p);background:#fff;border-radius:14px;padding:6px 11px;cursor:pointer}
+button:hover{background:var(--soft)}button.on{background:var(--p);color:#fff;border-color:var(--pd)}
+input,textarea{border:2px solid var(--p);border-radius:12px;padding:8px 10px;width:100%}
+#join{margin:auto;background:#fff;border:4px dashed var(--p);border-radius:32px;padding:28px 30px;width:min(92vw,380px);text-align:center;box-shadow:0 10px 30px #b9a4f055}
+#join h1{font-family:'Itim';margin:4px 0 2px;font-size:30px;color:var(--pd)}
+#join p{margin:4px 0 14px}#join button{margin-top:10px;width:100%;background:var(--p);color:#fff;font-size:17px}
+#join a{display:block;margin-top:14px;font-size:13px;cursor:pointer;text-decoration:underline}
+#app{display:flex;flex-direction:column;flex:1;min-height:0}
+.bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 10px;background:#ffffffb8}
+.bar b{font-family:'Itim';font-size:20px;color:var(--pd)}.sp{flex:1}
+#tabs button{padding:3px 10px}
+.col{width:26px;height:26px;border-radius:50%;padding:0;border:3px solid #fff;box-shadow:0 0 0 2px #cfc3f3}
+.col.on{box-shadow:0 0 0 3px var(--pd);transform:scale(1.15)}
+.stk{font-size:22px;padding:2px 6px}
+#wrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:8px}
+#board{position:relative;width:1200px;height:720px;flex:none;border-radius:34px;border:10px solid #c9b6f2;overflow:hidden;touch-action:none;background:#fff;transform-origin:center;box-shadow:0 8px 28px #9b82e044}
+#svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+body.t-erase #svg path,body.t-select #svg path{pointer-events:stroke}
+.it{position:absolute;transform-origin:0 0;user-select:none;touch-action:none}
+body:not(.t-select):not(.t-erase) .it{pointer-events:none}
+body.t-select .it{cursor:grab}body.t-erase .it,body.t-erase #svg path{cursor:crosshair}
+.it.sel{outline:3px dashed var(--pd);outline-offset:3px}
+.note{width:210px;min-height:140px;padding:12px;border-radius:6px 6px 22px 6px;box-shadow:3px 5px 10px #0002}
+.note .tx,.text .tx{white-space:pre-wrap;word-break:break-word;font-size:18px}
+.text{max-width:380px;padding:4px 8px}.text .tx{font-size:22px;font-weight:600}
+.ft{margin-top:8px;font-size:11px;opacity:.7;line-height:1.25}
+.stick{font-size:58px;line-height:1}
+.fr{position:absolute;left:0;right:0;white-space:nowrap;overflow:hidden;font-size:20px;line-height:1;pointer-events:none;z-index:5;text-align:center;letter-spacing:6px}
+.fr.t{top:0}.fr.b{bottom:0}
+#ed{position:fixed;inset:0;background:#4b3f7266;display:flex;align-items:center;justify-content:center;z-index:20}
+#ed div{background:#fff;border:4px dashed var(--p);border-radius:26px;padding:18px;width:min(92vw,420px)}
+#ed textarea{height:140px;resize:none}#cnt{font-size:13px;margin:6px 0}
+#toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--pd);color:#fff;padding:8px 16px;border-radius:20px;z-index:30}
+</style>
+</head>
+<body>
+
+<div id="join">
+  <div style="font-size:44px">🧪⚗️🔬</div>
+  <h1>ห้องทดลองน้อย</h1>
+  <p>ใส่ชื่อเล่นของหนู แล้วมาเขียนด้วยกันนะ 💜</p>
+  <input id="nick" maxlength="14" placeholder="ชื่อเล่น">
+  <button id="go">เข้าห้องทดลอง</button>
+  <a id="tl">คุณครูเข้าสู่ระบบ</a>
+  <div id="tf" hidden>
+    <input id="em" type="email" placeholder="อีเมลคุณครู" style="margin-top:10px">
+    <input id="pw" type="password" placeholder="รหัสผ่าน" style="margin-top:6px">
+    <button id="tgo">เข้าสู่ระบบ</button>
+  </div>
+</div>
+
+<div id="app" hidden>
+  <div class="bar">
+    <b>🧪 ห้องทดลองน้อย</b><span id="who"></span><span id="online"></span><span class="sp"></span>
+    <span id="tabs"></span><button id="addp" hidden>＋ หน้าใหม่</button>
+    <select id="bgsel" hidden></select>
+  </div>
+  <div class="bar">
+    <span id="tools"></span><span class="sp"></span>
+    <button id="big">＋ ขยาย</button><button id="small">－ ย่อ</button>
+  </div>
+  <div class="bar" id="opts"></div>
+  <div id="wrap">
+    <div id="board">
+      <svg id="svg" viewBox="0 0 1200 720"></svg>
+      <div class="fr t">🧪⚗️🔬🧫🧬⚛️💧🫧🧪⚗️🔬🧫🧬⚛️💧🫧🧪⚗️🔬🧫🧬⚛️💧🫧🧪⚗️🔬🧫🧬⚛️💧🫧🧪⚗️🔬🧫🧬</div>
+      <div class="fr b">🫧💧⚛️🧬🧫🔬⚗️🧪🫧💧⚛️🧬🧫🔬⚗️🧪🫧💧⚛️🧬🧫🔬⚗️🧪🫧💧⚛️🧬🧫🔬⚗️🧪🫧💧⚛️🧬</div>
+    </div>
+  </div>
+</div>
+
+<div id="ed" hidden><div>
+  <b id="edtitle"></b>
+  <textarea id="edt" placeholder="พิมพ์ได้เลย..."></textarea>
+  <div id="cnt"></div>
+  <button id="edok" class="on">เสร็จแล้ว</button> <button id="edno">ยกเลิก</button>
+</div></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+/* ====== 1) ใส่ค่า Firebase ของคุณครูตรงนี้ ====== */
+const CFG={
+  apiKey:"AIzaSyBnwVadSkTit6Y8bzCDkwLquvFw6-3FD-Y",
+  authDomain:"whiteboard-chempnink.firebaseapp.com",
+  databaseURL:"https://whiteboard-chempnink-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:"whiteboard-chempnink",
+  storageBucket:"whiteboard-chempnink.firebasestorage.app",
+  messagingSenderId:"226744492590",
+  appId:"1:226744492590:web:96ee2ccb9fbc4a55e3b5bf"
+};
+const MAX_USERS=100, WORD_LIMIT=200, LIMIT_MODE='child' /* 'child' = รวมทั้งหน้า | 'item' = ต่อกล่อง */, KEEP_DAYS=7;
+/* ================================================ */
+
+const PEN=['#3d3560','#ef4b6c','#ff8a3d','#ffc933','#3fbf7f','#3b9cf5','#8b5cf6','#8b5e3c',
+           '#ffb3c7','#ffcba4','#fff0a0','#a8e6cf','#a5d8ff','#cdb4ff','#e8b8ff','#ff9ec4'];
+const NOTE=['#fff3a8','#ffd1e3','#cfeeff','#d5f5e3','#e5d4ff','#ffe0c2'];
+const BG=[['ขาวนวล','#ffffff'],['ชมพูพาสเทล','#ffeef5'],['ม่วงอ่อน','#f1e9ff'],['ฟ้าพาสเทล','#e7f4ff'],['มินต์','#e6f8ef'],['เหลืองเนย','#fff9de'],['พีช','#ffeadb'],['ลาเวนเดอร์','#ece6ff']];
+const STK=['⭐','💖','🧪','⚗️','🔬','🧫','🧬','⚛️','💧','🫧','🌈','☁️','🌸','✨','🍀','🦋','🔥','🌙','🧲','🎀'];
+const TOOLS=[['select','👆 ย้าย'],['pen','✏️ ปากกา'],['text','🔤 ข้อความ'],['note','📝 โพสต์อิท'],['stk','🌟 สติกเกอร์'],['erase','🧽 ลบ']];
+const NS='http://www.w3.org/2000/svg', $=s=>document.querySelector(s);
+
+firebase.initializeApp(CFG);
+const db=firebase.database(), auth=firebase.auth(), TS=firebase.database.ServerValue.TIMESTAMP;
+let me={}, page=null, tool='pen', col=PEN[0], sz=4, ncol=NOTE[0], stk=STK[0], sel=null, items={}, plist=[], off=0, cur=null, edCtx=null, cleaned=false;
+
+/* ---- ตัวกรองคำไม่สุภาพ (กันคำปกติ เช่น สัดส่วน หีบ เหี้ยม) ---- */
+const BAD=/ควย|เหี้ย(?!ม)|สัด(?!ส่วน)|หี(?![บ้])|เย็ด|เยด|f+\W*u+\W*c+\W*k\w*|มึง/gi;
+const clean=t=>String(t||'').replace(/[\u200b-\u200d]/g,'').replace(BAD,'***');
+const words=t=>{t=t.trim();if(!t)return 0;return window.Intl&&Intl.Segmenter?[...new Intl.Segmenter('th',{granularity:'word'}).segment(t)].filter(s=>s.isWordLike).length:t.split(/\s+/).length};
+const fmt=t=>new Date(t).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false})+' น.';
+const toast=m=>{const d=document.createElement('div');d.id='toast';d.textContent=m;document.body.append(d);setTimeout(()=>d.remove(),2200)};
+const can=d=>d&&(me.teacher||d.uid===me.uid);
+
+/* ---- เข้าห้อง ---- */
+$('#tl').onclick=()=>$('#tf').hidden=!$('#tf').hidden;
+$('#go').onclick=async()=>{
+  const n=clean($('#nick').value.trim()).slice(0,14); if(!n)return toast('ใส่ชื่อเล่นก่อนนะ');
+  try{await auth.signInAnonymously()}catch(e){return alert('เข้าสู่ระบบไม่ได้: '+e.message)}
+  enter(n,false)};
+$('#tgo').onclick=async()=>{
+  try{await auth.signInWithEmailAndPassword($('#em').value.trim(),$('#pw').value)}catch(e){return alert('อีเมลหรือรหัสผ่านไม่ถูกต้อง')}
+  enter('คุณครู',true)};
+
+async function enter(nick,teacher){
+  me={uid:auth.currentUser.uid,nick,teacher};
+  db.ref('.info/serverTimeOffset').on('value',s=>off=s.val()||0);
+  const pr=await db.ref('presence').once('value');
+  if(!teacher&&pr.numChildren()>=MAX_USERS&&!pr.hasChild(me.uid)) return alert('ห้องเต็มแล้ว (100 คน) รอสักครู่แล้วลองใหม่นะ');
+  const my=db.ref('presence/'+me.uid); my.onDisconnect().remove(); my.set({nick});
+  db.ref('presence').on('value',s=>$('#online').textContent='🟢 '+s.numChildren()+' คน');
+  $('#join').hidden=true; $('#app').hidden=false; $('#who').textContent='· '+nick;
+  $('#addp').hidden=$('#bgsel').hidden=!teacher;
+  buildUI(); fit();
+  db.ref('pages').orderByChild('createdAt').on('value',s=>{
+    plist=[]; s.forEach(c=>{plist.push({id:c.key,...c.val()})});
+    if(!plist.length&&teacher) return newPage();
+    if(!plist.length) return $('#tabs').textContent='รอคุณครูเตรียมกระดานนะ';
+    if(!plist.find(p=>p.id===page)) openPage(plist[0].id);
+    tabs(); $('#board').style.background=(plist.find(p=>p.id===page)||{}).bg||'#fff'; $('#bgsel').value=$('#board').style.background?(plist.find(p=>p.id===page)||{}).bg:'';
+    if(!cleaned){cleaned=true;cleanup()}
+  });
+}
+const newPage=()=>db.ref('pages').push({name:'หน้า '+(plist.length+1),bg:'#ffffff',createdAt:TS});
+$('#addp').onclick=newPage;
+function tabs(){const t=$('#tabs');t.innerHTML='';plist.forEach(p=>{const b=document.createElement('button');b.textContent=p.name;b.className=p.id===page?'on':'';b.onclick=()=>openPage(p.id);t.append(b)})}
+
+/* ---- ล้างข้อความที่เก่ากว่า 7 วัน (ใครเปิดเว็บก็ช่วยล้างได้) ---- */
+function cleanup(){const cut=Date.now()+off-KEEP_DAYS*864e5-6e4;
+  plist.forEach(p=>db.ref('items/'+p.id).orderByChild('createdAt').endAt(cut).once('value',s=>s.forEach(c=>{c.ref.remove()})))}
+
+/* ---- หน้ากระดาษ + ข้อมูลเรียลไทม์ ---- */
+function openPage(id){
+  if(cur)cur.off(); page=id; items={}; sel=null; $('#svg').innerHTML=''; document.querySelectorAll('.it').forEach(e=>e.remove());
+  cur=db.ref('items/'+id); cur.on('child_added',s=>put(s.key,s.val())); cur.on('child_changed',s=>put(s.key,s.val()));
+  cur.on('child_removed',s=>{delete items[s.key];const e=document.getElementById('i'+s.key);e&&e.remove()});
+  tabs(); const p=plist.find(x=>x.id===id); if(p)$('#board').style.background=p.bg||'#fff';
+}
+function put(id,d){
+  items[id]=d; const old=document.getElementById('i'+id); old&&old.remove(); let el;
+  if(d.type==='s'){
+    el=document.createElementNS(NS,'path'); const pts=(d.p||'').split(' ');
+    el.setAttribute('d','M'+pts.join('L')+(pts.length===1?'L'+pts[0]:'')); el.setAttribute('fill','none');
+    el.setAttribute('stroke',d.c); el.setAttribute('stroke-width',d.w||4); el.setAttribute('stroke-linecap','round'); el.setAttribute('stroke-linejoin','round');
+    el.id='i'+id; el.onpointerdown=e=>hit(e,id); $('#svg').append(el); return;
+  }
+  el=document.createElement('div'); el.id='i'+id; el.className='it '+({t:'text',n:'note',e:'stick'})[d.type];
+  el.style.left=d.x+'px'; el.style.top=d.y+'px'; el.style.transform='scale('+(d.s||1)+')';
+  if(d.type==='e'){el.className='it stick';el.textContent=d.e}
+  else{
+    if(d.type==='n')el.style.background=d.c; else el.style.color=d.c;
+    el.innerHTML='<div class="tx"></div><div class="ft"></div>';
+    el.firstChild.textContent=clean(d.t); el.lastChild.innerHTML=fmt(d.createdAt||Date.now()+off)+'<br>';
+    el.lastChild.append('💜 '+clean(d.nick));
+  }
+  el.onpointerdown=e=>hit(e,id); el.ondblclick=()=>{if(can(d)&&d.type!=='e')openEd(d.type,null,id)};
+  if(sel===id)el.classList.add('sel'); $('#board').append(el);
+}
+
+/* ---- เลือก/ย้าย/ลบ ---- */
+function hit(e,id){
+  const d=items[id]; if(!d)return;
+  if(tool==='erase'){e.stopPropagation(); return can(d)?db.ref('items/'+page+'/'+id).remove():toast('ลบได้เฉพาะของตัวเองนะ')}
+  if(tool!=='select'||d.type==='s')return;
+  e.stopPropagation(); sel=id; document.querySelectorAll('.it').forEach(x=>x.classList.toggle('sel',x.id==='i'+id));
+  if(!can(d))return;
+  const el=e.currentTarget, sc=$('#board').getBoundingClientRect().width/1200, sx=e.clientX, sy=e.clientY, ox=d.x, oy=d.y; let nx=ox, ny=oy;
+  el.setPointerCapture(e.pointerId);
+  el.onpointermove=m=>{nx=ox+(m.clientX-sx)/sc;ny=oy+(m.clientY-sy)/sc;el.style.left=nx+'px';el.style.top=ny+'px'};
+  el.onpointerup=()=>{el.onpointermove=el.onpointerup=null;if(nx!==ox||ny!==oy)db.ref('items/'+page+'/'+id).update({x:Math.round(nx),y:Math.round(ny)})};
+}
+const zoom=k=>{const d=items[sel];if(!d||!can(d))return toast('เลือกชิ้นงานของหนูก่อนนะ (โหมดย้าย)');db.ref('items/'+page+'/'+sel).update({s:Math.min(4,Math.max(.4,+((d.s||1)+k).toFixed(2)))})};
+$('#big').onclick=()=>zoom(.2); $('#small').onclick=()=>zoom(-.2);
+
+/* ---- วาด / วางของบนกระดาน ---- */
+const B=$('#board');
+const pos=e=>{const r=B.getBoundingClientRect(),s=r.width/1200;return[(e.clientX-r.left-10*s)/s,(e.clientY-r.top-10*s)/s]};
+let pts=null, tmp=null;
+B.onpointerdown=e=>{
+  const [x,y]=pos(e);
+  if(tool==='pen'){B.setPointerCapture(e.pointerId);pts=[[x,y]];tmp=document.createElementNS(NS,'path');
+    tmp.setAttribute('fill','none');tmp.setAttribute('stroke',col);tmp.setAttribute('stroke-width',sz);tmp.setAttribute('stroke-linecap','round');tmp.setAttribute('stroke-linejoin','round');$('#svg').append(tmp);draw()}
+  else if(tool==='text'||tool==='note')openEd(tool==='text'?'t':'n',[x,y]);
+  else if(tool==='stk')db.ref('items/'+page).push({type:'e',e:stk,uid:me.uid,nick:me.nick,createdAt:TS,x:Math.round(x-30),y:Math.round(y-30),s:1});
+  else if(tool==='select'&&!e.target.closest('.it')){sel=null;document.querySelectorAll('.it.sel').forEach(x=>x.classList.remove('sel'))}
+};
+B.onpointermove=e=>{if(!pts)return;const [x,y]=pos(e),l=pts[pts.length-1];if(Math.hypot(x-l[0],y-l[1])>2&&pts.length<3000){pts.push([x,y]);draw()}};
+B.onpointerup=B.onpointercancel=()=>{if(!pts)return;const p=pts.map(q=>q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ');
+  db.ref('items/'+page).push({type:'s',uid:me.uid,nick:me.nick,createdAt:TS,c:col,w:sz,p});tmp.remove();pts=tmp=null};
+const draw=()=>tmp.setAttribute('d','M'+pts.map(q=>q[0]+','+q[1]).join('L')+(pts.length===1?'L'+pts[0][0]+','+pts[0][1]:''));
+
+/* ---- กล่องพิมพ์ข้อความ/โพสต์อิท (จำกัด 200 คำ + กรองคำไม่สุภาพ) ---- */
+function used(skip){if(LIMIT_MODE==='item')return 0;return Object.entries(items).filter(([k,d])=>d.uid===me.uid&&d.t&&k!==skip).reduce((n,[,d])=>n+words(d.t),0)}
+function openEd(kind,xy,id){
+  edCtx={kind,xy,id}; $('#ed').hidden=false; $('#edtitle').textContent=kind==='n'?'📝 เขียนโพสต์อิท':'🔤 เขียนข้อความ';
+  $('#edt').value=id?items[id].t:''; $('#edt').focus(); upd();
+}
+function upd(){const t=$('#edt'),c=clean(t.value);if(c!==t.value)t.value=c;const n=words(c),u=used(edCtx.id);
+  $('#cnt').textContent='💬 '+(n+u)+' / '+WORD_LIMIT+' คำ'; $('#cnt').style.color=n+u>WORD_LIMIT?'#e0245e':'';$('#edok').disabled=n+u>WORD_LIMIT||!n}
+$('#edt').oninput=upd; $('#edno').onclick=()=>{$('#ed').hidden=true};
+$('#edok').onclick=()=>{
+  const t=clean($('#edt').value).trim(), {kind,xy,id}=edCtx; if(!t)return;
+  if(id)db.ref('items/'+page+'/'+id).update({t});
+  else db.ref('items/'+page).push({type:kind,t,uid:me.uid,nick:me.nick,createdAt:TS,x:Math.round(Math.max(0,Math.min(980,xy[0]))),y:Math.round(Math.max(0,Math.min(560,xy[1]))),s:1,c:kind==='n'?ncol:col});
+  $('#ed').hidden=true;
+};
+
+/* ---- แถบเครื่องมือ ---- */
+function buildUI(){
+  const T=$('#tools');TOOLS.forEach(([k,n])=>{const b=document.createElement('button');b.textContent=n;b.dataset.k=k;b.onclick=()=>{tool=k;ui()};T.append(b)});
+  $('#bgsel').innerHTML=BG.map(([n,c])=>`<option value="${c}">🎨 ${n}</option>`).join('');
+  $('#bgsel').onchange=e=>db.ref('pages/'+page).update({bg:e.target.value}); ui();
+}
+function ui(){
+  document.body.className='t-'+tool; document.querySelectorAll('#tools button').forEach(b=>b.classList.toggle('on',b.dataset.k===tool));
+  const o=$('#opts'); o.innerHTML=''; o.hidden=['select','erase'].includes(tool);
+  const dot=(c,on,f)=>{const b=document.createElement('button');b.className='col'+(on?' on':'');b.style.background=c;b.onclick=f;o.append(b)};
+  if(tool==='pen'||tool==='text')PEN.forEach(c=>dot(c,c===col,()=>{col=c;ui()}));
+  if(tool==='pen')[3,6,12].forEach(s=>{const b=document.createElement('button');b.textContent='●';b.style.fontSize=(8+s*1.6)+'px';b.className=s===sz?'on':'';b.onclick=()=>{sz=s;ui()};o.append(b)});
+  if(tool==='note')NOTE.forEach(c=>dot(c,c===ncol,()=>{ncol=c;ui()}));
+  if(tool==='stk')STK.forEach(s=>{const b=document.createElement('button');b.textContent=s;b.className='stk'+(s===stk?' on':'');b.onclick=()=>{stk=s;ui()};o.append(b)});
+}
+function fit(){const w=$('#wrap'),s=Math.min((w.clientWidth-16)/1200,(w.clientHeight-16)/720,1);B.style.transform='scale('+s+')';B.style.margin=((720*s-720)/2)+'px '+((1200*s-1200)/2)+'px'}
+addEventListener('resize',fit);
+</script>
+</body>
+</html>
