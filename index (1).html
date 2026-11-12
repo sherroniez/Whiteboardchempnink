@@ -26,7 +26,7 @@ input,textarea{border:2px solid var(--p);border-radius:12px;padding:8px 10px;wid
 .col.on{box-shadow:0 0 0 3px var(--pd);transform:scale(1.15)}
 .stk{font-size:22px;padding:2px 6px}
 #wrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:8px}
-#board{position:relative;width:1200px;height:720px;flex:none;border-radius:34px;border:10px solid #c9b6f2;overflow:hidden;touch-action:none;background:#fff;transform-origin:center;box-shadow:0 8px 28px #9b82e044}
+#board{position:relative;width:1200px;height:720px;flex:none;border-radius:34px;border:10px solid #c9b6f2;overflow:hidden;touch-action:none;background:#fff;transform-origin:center;box-shadow:inset 0 0 0 5px #fff,inset 0 0 0 8px #e6dcfb,0 8px 28px #9b82e044}
 #svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 body.t-erase #svg path,body.t-select #svg path{pointer-events:stroke}
 .it{position:absolute;transform-origin:0 0;user-select:none;touch-action:none}
@@ -38,8 +38,6 @@ body.t-select .it{cursor:grab}body.t-erase .it,body.t-erase #svg path{cursor:cro
 .text{max-width:380px;padding:4px 8px}.text .tx{font-size:22px;font-weight:600}
 .ft{margin-top:8px;font-size:11px;opacity:.7;line-height:1.25}
 .stick{font-size:58px;line-height:1}
-.fr{position:absolute;left:0;right:0;white-space:nowrap;overflow:hidden;font-size:20px;line-height:1;pointer-events:none;z-index:5;text-align:center;letter-spacing:6px}
-.fr.t{top:0}.fr.b{bottom:0}
 #ed{position:fixed;inset:0;background:#4b3f7266;display:flex;align-items:center;justify-content:center;z-index:20}
 #ed div{background:#fff;border:4px dashed var(--p);border-radius:26px;padding:18px;width:min(92vw,420px)}
 #ed textarea{height:140px;resize:none}#cnt{font-size:13px;margin:6px 0}
@@ -76,8 +74,6 @@ body.t-select .it{cursor:grab}body.t-erase .it,body.t-erase #svg path{cursor:cro
   <div id="wrap">
     <div id="board">
       <svg id="svg" viewBox="0 0 1200 720"></svg>
-      <div class="fr t">🧪⚗️🔬🧫🧬⚛️💧🫧🧪⚗️🔬🧫🧬⚛️💧🫧🧪⚗️🔬🧫🧬⚛️💧🫧🧪⚗️🔬🧫🧬⚛️💧🫧🧪⚗️🔬🧫🧬</div>
-      <div class="fr b">🫧💧⚛️🧬🧫🔬⚗️🧪🫧💧⚛️🧬🧫🔬⚗️🧪🫧💧⚛️🧬🧫🔬⚗️🧪🫧💧⚛️🧬🧫🔬⚗️🧪🫧💧⚛️🧬</div>
     </div>
   </div>
 </div>
@@ -123,7 +119,11 @@ const BAD=/ควย|เหี้ย(?!ม)|สัด(?!ส่วน)|หี(?![
 const clean=t=>String(t||'').replace(/[\u200b-\u200d]/g,'').replace(BAD,'***');
 const words=t=>{t=t.trim();if(!t)return 0;return window.Intl&&Intl.Segmenter?[...new Intl.Segmenter('th',{granularity:'word'}).segment(t)].filter(s=>s.isWordLike).length:t.split(/\s+/).length};
 const fmt=t=>new Date(t).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false})+' น.';
-const toast=m=>{const d=document.createElement('div');d.id='toast';d.textContent=m;document.body.append(d);setTimeout(()=>d.remove(),2200)};
+const toast=(m,ms=2200)=>{document.querySelectorAll('#toast').forEach(x=>x.remove());const d=document.createElement('div');d.id='toast';d.textContent=m;document.body.append(d);setTimeout(()=>d.remove(),ms)};
+/* ถ้าบันทึกไม่สำเร็จ ให้บอกสาเหตุ (เดิมจะหายไปเงียบๆ) */
+const W=p=>p.catch(e=>{console.error(e);const r=((e&&e.code)||'')+' '+((e&&e.message)||e);
+  toast(/permission/i.test(r)?'บันทึกไม่สำเร็จ: ฐานข้อมูลไม่อนุญาต (เช็กกฎ Rules และอีเมลคุณครู)':'บันทึกไม่สำเร็จ: '+r,7000)});
+const needPage=()=>page?true:(toast('ยังไม่มีหน้ากระดาน — ให้คุณครูเข้าสู่ระบบเพื่อสร้างหน้าแรกก่อนนะ',6000),false);
 const can=d=>d&&(me.teacher||d.uid===me.uid);
 
 /* ---- เข้าห้อง ---- */
@@ -149,7 +149,9 @@ function showErr(e){
   alert('เข้าห้องไม่ได้: '+m+(c?' ['+c+']':''));
 }
 
+let entered=false, triedPage=false;
 async function enter(nick,teacher){
+  if(entered)return; entered=true;
   me={uid:auth.currentUser.uid,nick,teacher};
   db.ref('.info/serverTimeOffset').on('value',s=>off=s.val()||0);
   if(MAX_USERS&&!teacher){
@@ -163,14 +165,15 @@ async function enter(nick,teacher){
   buildUI(); fit();
   db.ref('pages').orderByChild('createdAt').on('value',s=>{
     plist=[]; s.forEach(c=>{plist.push({id:c.key,...c.val()})});
-    if(!plist.length&&teacher) return newPage();
+    if(!plist.length&&teacher){ if(!triedPage){triedPage=true;newPage()} return $('#tabs').textContent='กำลังสร้างหน้าแรก...' }
     if(!plist.length) return $('#tabs').textContent='รอคุณครูเตรียมกระดานนะ';
     if(!plist.find(p=>p.id===page)) openPage(plist[0].id);
     tabs(); $('#board').style.background=(plist.find(p=>p.id===page)||{}).bg||'#fff'; $('#bgsel').value=$('#board').style.background?(plist.find(p=>p.id===page)||{}).bg:'';
     if(!cleaned){cleaned=true;cleanup()}
   },showErr);
 }
-const newPage=()=>db.ref('pages').push({name:'หน้า '+(plist.length+1),bg:'#ffffff',createdAt:TS});
+const newPage=()=>db.ref('pages').push({name:'หน้า '+(plist.length+1),bg:'#ffffff',createdAt:TS}).catch(e=>{
+  alert('สร้างหน้าไม่ได้: ฐานข้อมูลไม่อนุญาต\n\nอีเมลที่ล็อกอินอยู่: '+(auth.currentUser&&auth.currentUser.email||'(ไม่ใช่บัญชีคุณครู)')+'\n\nอีเมลนี้ต้องตรงกับที่ใส่ในกฎ (Rules) ทุกตัวอักษร และต้องเป็นตัวพิมพ์เล็กทั้งหมด');});
 $('#addp').onclick=newPage;
 function tabs(){const t=$('#tabs');t.innerHTML='';plist.forEach(p=>{const b=document.createElement('button');b.textContent=p.name;b.className=p.id===page?'on':'';b.onclick=()=>openPage(p.id);t.append(b)})}
 
@@ -209,16 +212,16 @@ function put(id,d){
 /* ---- เลือก/ย้าย/ลบ ---- */
 function hit(e,id){
   const d=items[id]; if(!d)return;
-  if(tool==='erase'){e.stopPropagation(); return can(d)?db.ref('items/'+page+'/'+id).remove():toast('ลบได้เฉพาะของตัวเองนะ')}
+  if(tool==='erase'){e.stopPropagation(); return can(d)?W(db.ref('items/'+page+'/'+id).remove()):toast('ลบได้เฉพาะของตัวเองนะ')}
   if(tool!=='select'||d.type==='s')return;
   e.stopPropagation(); sel=id; document.querySelectorAll('.it').forEach(x=>x.classList.toggle('sel',x.id==='i'+id));
   if(!can(d))return;
   const el=e.currentTarget, sc=$('#board').getBoundingClientRect().width/1200, sx=e.clientX, sy=e.clientY, ox=d.x, oy=d.y; let nx=ox, ny=oy;
   el.setPointerCapture(e.pointerId);
   el.onpointermove=m=>{nx=ox+(m.clientX-sx)/sc;ny=oy+(m.clientY-sy)/sc;el.style.left=nx+'px';el.style.top=ny+'px'};
-  el.onpointerup=()=>{el.onpointermove=el.onpointerup=null;if(nx!==ox||ny!==oy)db.ref('items/'+page+'/'+id).update({x:Math.round(nx),y:Math.round(ny)})};
+  el.onpointerup=()=>{el.onpointermove=el.onpointerup=null;if(nx!==ox||ny!==oy)W(db.ref('items/'+page+'/'+id).update({x:Math.round(nx),y:Math.round(ny)}))};
 }
-const zoom=k=>{const d=items[sel];if(!d||!can(d))return toast('เลือกชิ้นงานของหนูก่อนนะ (โหมดย้าย)');db.ref('items/'+page+'/'+sel).update({s:Math.min(4,Math.max(.4,+((d.s||1)+k).toFixed(2)))})};
+const zoom=k=>{const d=items[sel];if(!d||!can(d))return toast('เลือกชิ้นงานของหนูก่อนนะ (โหมดย้าย)');W(db.ref('items/'+page+'/'+sel).update({s:Math.min(4,Math.max(.4,+((d.s||1)+k).toFixed(2)))}))};
 $('#big').onclick=()=>zoom(.2); $('#small').onclick=()=>zoom(-.2);
 
 /* ---- วาด / วางของบนกระดาน ---- */
@@ -226,16 +229,17 @@ const B=$('#board');
 const pos=e=>{const r=B.getBoundingClientRect(),s=r.width/1200;return[(e.clientX-r.left-10*s)/s,(e.clientY-r.top-10*s)/s]};
 let pts=null, tmp=null;
 B.onpointerdown=e=>{
+  if(['pen','text','note','stk'].includes(tool)&&!needPage())return;
   const [x,y]=pos(e);
   if(tool==='pen'){B.setPointerCapture(e.pointerId);pts=[[x,y]];tmp=document.createElementNS(NS,'path');
     tmp.setAttribute('fill','none');tmp.setAttribute('stroke',col);tmp.setAttribute('stroke-width',sz);tmp.setAttribute('stroke-linecap','round');tmp.setAttribute('stroke-linejoin','round');$('#svg').append(tmp);draw()}
   else if(tool==='text'||tool==='note')openEd(tool==='text'?'t':'n',[x,y]);
-  else if(tool==='stk')db.ref('items/'+page).push({type:'e',e:stk,uid:me.uid,nick:me.nick,createdAt:TS,x:Math.round(x-30),y:Math.round(y-30),s:1});
+  else if(tool==='stk')W(db.ref('items/'+page).push({type:'e',e:stk,uid:me.uid,nick:me.nick,createdAt:TS,x:Math.round(x-30),y:Math.round(y-30),s:1}));
   else if(tool==='select'&&!e.target.closest('.it')){sel=null;document.querySelectorAll('.it.sel').forEach(x=>x.classList.remove('sel'))}
 };
 B.onpointermove=e=>{if(!pts)return;const [x,y]=pos(e),l=pts[pts.length-1];if(Math.hypot(x-l[0],y-l[1])>2&&pts.length<3000){pts.push([x,y]);draw()}};
 B.onpointerup=B.onpointercancel=()=>{if(!pts)return;const p=pts.map(q=>q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ');
-  db.ref('items/'+page).push({type:'s',uid:me.uid,nick:me.nick,createdAt:TS,c:col,w:sz,p});tmp.remove();pts=tmp=null};
+  W(db.ref('items/'+page).push({type:'s',uid:me.uid,nick:me.nick,createdAt:TS,c:col,w:sz,p}));tmp.remove();pts=tmp=null};
 const draw=()=>tmp.setAttribute('d','M'+pts.map(q=>q[0]+','+q[1]).join('L')+(pts.length===1?'L'+pts[0][0]+','+pts[0][1]:''));
 
 /* ---- กล่องพิมพ์ข้อความ/โพสต์อิท (จำกัด 200 คำ + กรองคำไม่สุภาพ) ---- */
@@ -249,16 +253,16 @@ function upd(){const t=$('#edt'),c=clean(t.value);if(c!==t.value)t.value=c;const
 $('#edt').oninput=upd; $('#edno').onclick=()=>{$('#ed').hidden=true};
 $('#edok').onclick=()=>{
   const t=clean($('#edt').value).trim(), {kind,xy,id}=edCtx; if(!t)return;
-  if(id)db.ref('items/'+page+'/'+id).update({t});
-  else db.ref('items/'+page).push({type:kind,t,uid:me.uid,nick:me.nick,createdAt:TS,x:Math.round(Math.max(0,Math.min(980,xy[0]))),y:Math.round(Math.max(0,Math.min(560,xy[1]))),s:1,c:kind==='n'?ncol:col});
+  if(id)W(db.ref('items/'+page+'/'+id).update({t}));
+  else W(db.ref('items/'+page).push({type:kind,t,uid:me.uid,nick:me.nick,createdAt:TS,x:Math.round(Math.max(0,Math.min(980,xy[0]))),y:Math.round(Math.max(0,Math.min(560,xy[1]))),s:1,c:kind==='n'?ncol:col}));
   $('#ed').hidden=true;
 };
 
 /* ---- แถบเครื่องมือ ---- */
 function buildUI(){
-  const T=$('#tools');TOOLS.forEach(([k,n])=>{const b=document.createElement('button');b.textContent=n;b.dataset.k=k;b.onclick=()=>{tool=k;ui()};T.append(b)});
+  const T=$('#tools');T.innerHTML='';TOOLS.forEach(([k,n])=>{const b=document.createElement('button');b.textContent=n;b.dataset.k=k;b.onclick=()=>{tool=k;ui()};T.append(b)});
   $('#bgsel').innerHTML=BG.map(([n,c])=>`<option value="${c}">🎨 ${n}</option>`).join('');
-  $('#bgsel').onchange=e=>db.ref('pages/'+page).update({bg:e.target.value}); ui();
+  $('#bgsel').onchange=e=>W(db.ref('pages/'+page).update({bg:e.target.value})); ui();
 }
 function ui(){
   document.body.className='t-'+tool; document.querySelectorAll('#tools button').forEach(b=>b.classList.toggle('on',b.dataset.k===tool));
