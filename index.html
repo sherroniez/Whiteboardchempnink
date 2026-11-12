@@ -38,10 +38,8 @@ body.t-select .it{cursor:grab}body.t-erase .it,body.t-erase #svg path{cursor:cro
 .text{max-width:380px;padding:4px 8px}.text .tx{font-size:22px;font-weight:600}
 .ft{margin-top:8px;font-size:11px;opacity:.7;line-height:1.25}
 .stick{font-size:58px;line-height:1}
-.fr{position:absolute;left:0;right:0;white-space:nowrap;overflow:hidden;font-size:20px;line-height:1;pointer-events:none;z-index:5;text-align:center;letter-spacing:6px}
-.fr.t{top:0}.fr.b{bottom:0}
 #ed{position:fixed;inset:0;background:#4b3f7266;display:flex;align-items:center;justify-content:center;z-index:20}
-#ed div{background:#fff;border:4px dashed var(--p);border-radius:26px;padding:18px;width:min(92vw,420px)}
+#ed>div{background:#fff;border:4px dashed var(--p);border-radius:26px;padding:18px;width:min(92vw,420px)}
 #ed textarea{height:140px;resize:none}#cnt{font-size:13px;margin:6px 0}
 #toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--pd);color:#fff;padding:8px 16px;border-radius:20px;z-index:30}
 </style>
@@ -64,7 +62,7 @@ body.t-select .it{cursor:grab}body.t-erase .it,body.t-erase #svg path{cursor:cro
 
 <div id="app" hidden>
   <div class="bar">
-    <b>🧪 ห้องทดลองน้อย</b><span id="who"></span><span id="online"></span><span class="sp"></span>
+    <b>🧪 ห้องทดลองน้อย</b><span id="who"></span><span id="online"></span><span id="conn" style="color:#e0245e"></span><span class="sp"></span>
     <span id="tabs"></span><button id="addp" hidden>＋ หน้าใหม่</button>
     <select id="bgsel" hidden></select>
   </div>
@@ -76,8 +74,6 @@ body.t-select .it{cursor:grab}body.t-erase .it,body.t-erase #svg path{cursor:cro
   <div id="wrap">
     <div id="board">
       <svg id="svg" viewBox="0 0 1200 720"></svg>
-      <div class="fr t">🧪⚗️🔬🧫🧬⚛️💧🫧🧪⚗️🔬🧫🧬⚛️💧🫧🧪⚗️🔬🧫🧬⚛️💧🫧🧪⚗️🔬🧫🧬⚛️💧🫧🧪⚗️🔬🧫🧬</div>
-      <div class="fr b">🫧💧⚛️🧬🧫🔬⚗️🧪🫧💧⚛️🧬🧫🔬⚗️🧪🫧💧⚛️🧬🧫🔬⚗️🧪🫧💧⚛️🧬🧫🔬⚗️🧪🫧💧⚛️🧬</div>
     </div>
   </div>
 </div>
@@ -103,7 +99,7 @@ const CFG={
   messagingSenderId:"226744492590",
   appId:"1:226744492590:web:96ee2ccb9fbc4a55e3b5bf"
 };
-const MAX_USERS=100, WORD_LIMIT=200, LIMIT_MODE='child' /* 'child' = รวมทั้งหน้า | 'item' = ต่อกล่อง */, KEEP_DAYS=7;
+const MAX_USERS=0 /* 0 = ไม่จำกัดจำนวนคน */, WORD_LIMIT=200, LIMIT_MODE='child' /* 'child' = รวมทั้งหน้า | 'item' = ต่อกล่อง */, KEEP_DAYS=7;
 /* ================================================ */
 
 const PEN=['#3d3560','#ef4b6c','#ff8a3d','#ffc933','#3fbf7f','#3b9cf5','#8b5cf6','#8b5e3c',
@@ -126,26 +122,54 @@ const fmt=t=>new Date(t).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',day:'nu
 const toast=m=>{const d=document.createElement('div');d.id='toast';d.textContent=m;document.body.append(d);setTimeout(()=>d.remove(),2200)};
 const can=d=>d&&(me.teacher||d.uid===me.uid);
 
+/* ---- แจ้งเตือนเมื่อบันทึกลงฐานข้อมูลไม่สำเร็จ (เดิมเงียบไปเฉยๆ) ---- */
+let warned=false;
+function warn(e){
+  const raw=((e&&e.code)||'')+' '+((e&&e.message)||e);
+  const m=/permission_denied/i.test(raw)?'ฐานข้อมูลไม่อนุญาตให้เขียน ต้องตั้งกฎ (Rules) ของ Realtime Database ให้ผู้ที่ล็อกอินอ่านและเขียนได้':'บันทึกไม่ได้: '+((e&&e.message)||e);
+  if(!warned){warned=true;alert(m)}else toast('บันทึกไม่ได้');
+}
+const W=p=>{Promise.resolve(p).catch(warn);return p};
+const need=()=>page?true:(toast('ยังไม่มีหน้ากระดาน รอสักครู่หรือให้คุณครูสร้างหน้าก่อน'),false);
+
 /* ---- เข้าห้อง ---- */
 $('#tl').onclick=()=>$('#tf').hidden=!$('#tf').hidden;
 $('#go').onclick=async()=>{
   const n=clean($('#nick').value.trim()).slice(0,14); if(!n)return toast('ใส่ชื่อเล่นก่อนนะ');
-  try{await auth.signInAnonymously()}catch(e){return alert('เข้าสู่ระบบไม่ได้: '+e.message)}
-  enter(n,false)};
+  try{await auth.signInAnonymously()}catch(e){return showErr(e)}
+  try{await enter(n,false)}catch(e){showErr(e)}};
 $('#tgo').onclick=async()=>{
-  try{await auth.signInWithEmailAndPassword($('#em').value.trim(),$('#pw').value)}catch(e){return alert('อีเมลหรือรหัสผ่านไม่ถูกต้อง')}
-  enter('คุณครู',true)};
+  try{await auth.signInWithEmailAndPassword($('#em').value.trim(),$('#pw').value)}
+  catch(e){return /wrong-password|invalid-credential|user-not-found|invalid-email|missing/.test(e.code||'')?alert('อีเมลหรือรหัสผ่านไม่ถูกต้อง'):showErr(e)}
+  try{await enter('คุณครู',true)}catch(e){showErr(e)}};
+
+/* บอกสาเหตุเป็นภาษาไทยเมื่อเข้าห้องไม่ได้ */
+function showErr(e){
+  const c=(e&&e.code)||'', raw=c+' '+((e&&e.message)||e);
+  let m;
+  if(/operation-not-allowed|admin-restricted/.test(c)) m='ยังไม่ได้เปิดการเข้าสู่ระบบแบบ Anonymous ใน Firebase (Authentication > Sign-in method)';
+  else if(/PERMISSION_DENIED|permission_denied/.test(raw)) m='ฐานข้อมูลไม่อนุญาต ต้องตั้งกฎ (Rules) ของ Realtime Database ให้ผู้ที่ล็อกอินอ่านและเขียนได้';
+  else if(/network/.test(c)) m='อินเทอร์เน็ตมีปัญหา ลองใหม่อีกครั้ง';
+  else if(/api-key|invalid-api/.test(c)) m='ค่า apiKey ในไฟล์ไม่ถูกต้อง';
+  else m=(e&&e.message)||String(e);
+  alert('เข้าห้องไม่ได้: '+m+(c?' ['+c+']':''));
+}
 
 async function enter(nick,teacher){
   me={uid:auth.currentUser.uid,nick,teacher};
   db.ref('.info/serverTimeOffset').on('value',s=>off=s.val()||0);
-  const pr=await db.ref('presence').once('value');
-  if(!teacher&&pr.numChildren()>=MAX_USERS&&!pr.hasChild(me.uid)) return alert('ห้องเต็มแล้ว (100 คน) รอสักครู่แล้วลองใหม่นะ');
+  if(MAX_USERS&&!teacher){
+    const pr=await db.ref('presence').once('value');
+    if(pr.numChildren()>=MAX_USERS&&!pr.hasChild(me.uid)) return alert('ห้องเต็มแล้ว ('+MAX_USERS+' คน) รอสักครู่แล้วลองใหม่นะ');
+  }
   const my=db.ref('presence/'+me.uid); my.onDisconnect().remove(); my.set({nick});
   db.ref('presence').on('value',s=>$('#online').textContent='🟢 '+s.numChildren()+' คน');
   $('#join').hidden=true; $('#app').hidden=false; $('#who').textContent='· '+nick;
   $('#addp').hidden=$('#bgsel').hidden=!teacher;
   buildUI(); fit();
+  let conn=false;
+  db.ref('.info/connected').on('value',s=>{conn=!!s.val();$('#conn').textContent=conn?'':'ยังไม่ได้เชื่อมต่อฐานข้อมูล'});
+  setTimeout(()=>{if(!conn)alert('เชื่อมต่อฐานข้อมูลไม่ได้ ตรวจว่าสร้าง Realtime Database แล้ว และ databaseURL ในไฟล์ตรงกับที่แสดงในหน้า Realtime Database ของ Firebase')},8000);
   db.ref('pages').orderByChild('createdAt').on('value',s=>{
     plist=[]; s.forEach(c=>{plist.push({id:c.key,...c.val()})});
     if(!plist.length&&teacher) return newPage();
@@ -153,9 +177,9 @@ async function enter(nick,teacher){
     if(!plist.find(p=>p.id===page)) openPage(plist[0].id);
     tabs(); $('#board').style.background=(plist.find(p=>p.id===page)||{}).bg||'#fff'; $('#bgsel').value=$('#board').style.background?(plist.find(p=>p.id===page)||{}).bg:'';
     if(!cleaned){cleaned=true;cleanup()}
-  });
+  },showErr);
 }
-const newPage=()=>db.ref('pages').push({name:'หน้า '+(plist.length+1),bg:'#ffffff',createdAt:TS});
+const newPage=()=>W(db.ref('pages').push({name:'หน้า '+(plist.length+1),bg:'#ffffff',createdAt:TS}));
 $('#addp').onclick=newPage;
 function tabs(){const t=$('#tabs');t.innerHTML='';plist.forEach(p=>{const b=document.createElement('button');b.textContent=p.name;b.className=p.id===page?'on':'';b.onclick=()=>openPage(p.id);t.append(b)})}
 
@@ -194,16 +218,16 @@ function put(id,d){
 /* ---- เลือก/ย้าย/ลบ ---- */
 function hit(e,id){
   const d=items[id]; if(!d)return;
-  if(tool==='erase'){e.stopPropagation(); return can(d)?db.ref('items/'+page+'/'+id).remove():toast('ลบได้เฉพาะของตัวเองนะ')}
+  if(tool==='erase'){e.stopPropagation(); return can(d)?W(db.ref('items/'+page+'/'+id).remove()):toast('ลบได้เฉพาะของตัวเองนะ')}
   if(tool!=='select'||d.type==='s')return;
   e.stopPropagation(); sel=id; document.querySelectorAll('.it').forEach(x=>x.classList.toggle('sel',x.id==='i'+id));
   if(!can(d))return;
   const el=e.currentTarget, sc=$('#board').getBoundingClientRect().width/1200, sx=e.clientX, sy=e.clientY, ox=d.x, oy=d.y; let nx=ox, ny=oy;
   el.setPointerCapture(e.pointerId);
   el.onpointermove=m=>{nx=ox+(m.clientX-sx)/sc;ny=oy+(m.clientY-sy)/sc;el.style.left=nx+'px';el.style.top=ny+'px'};
-  el.onpointerup=()=>{el.onpointermove=el.onpointerup=null;if(nx!==ox||ny!==oy)db.ref('items/'+page+'/'+id).update({x:Math.round(nx),y:Math.round(ny)})};
+  el.onpointerup=()=>{el.onpointermove=el.onpointerup=null;if(nx!==ox||ny!==oy)W(db.ref('items/'+page+'/'+id).update({x:Math.round(nx),y:Math.round(ny)}))};
 }
-const zoom=k=>{const d=items[sel];if(!d||!can(d))return toast('เลือกชิ้นงานของหนูก่อนนะ (โหมดย้าย)');db.ref('items/'+page+'/'+sel).update({s:Math.min(4,Math.max(.4,+((d.s||1)+k).toFixed(2)))})};
+const zoom=k=>{const d=items[sel];if(!d||!can(d))return toast('เลือกชิ้นงานของหนูก่อนนะ (โหมดย้าย)');W(db.ref('items/'+page+'/'+sel).update({s:Math.min(4,Math.max(.4,+((d.s||1)+k).toFixed(2)))}))};
 $('#big').onclick=()=>zoom(.2); $('#small').onclick=()=>zoom(-.2);
 
 /* ---- วาด / วางของบนกระดาน ---- */
@@ -212,15 +236,16 @@ const pos=e=>{const r=B.getBoundingClientRect(),s=r.width/1200;return[(e.clientX
 let pts=null, tmp=null;
 B.onpointerdown=e=>{
   const [x,y]=pos(e);
+  if(['pen','text','note','stk'].includes(tool)&&!need())return;
   if(tool==='pen'){B.setPointerCapture(e.pointerId);pts=[[x,y]];tmp=document.createElementNS(NS,'path');
     tmp.setAttribute('fill','none');tmp.setAttribute('stroke',col);tmp.setAttribute('stroke-width',sz);tmp.setAttribute('stroke-linecap','round');tmp.setAttribute('stroke-linejoin','round');$('#svg').append(tmp);draw()}
   else if(tool==='text'||tool==='note')openEd(tool==='text'?'t':'n',[x,y]);
-  else if(tool==='stk')db.ref('items/'+page).push({type:'e',e:stk,uid:me.uid,nick:me.nick,createdAt:TS,x:Math.round(x-30),y:Math.round(y-30),s:1});
+  else if(tool==='stk')W(db.ref('items/'+page).push({type:'e',e:stk,uid:me.uid,nick:me.nick,createdAt:TS,x:Math.round(x-30),y:Math.round(y-30),s:1}));
   else if(tool==='select'&&!e.target.closest('.it')){sel=null;document.querySelectorAll('.it.sel').forEach(x=>x.classList.remove('sel'))}
 };
 B.onpointermove=e=>{if(!pts)return;const [x,y]=pos(e),l=pts[pts.length-1];if(Math.hypot(x-l[0],y-l[1])>2&&pts.length<3000){pts.push([x,y]);draw()}};
 B.onpointerup=B.onpointercancel=()=>{if(!pts)return;const p=pts.map(q=>q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ');
-  db.ref('items/'+page).push({type:'s',uid:me.uid,nick:me.nick,createdAt:TS,c:col,w:sz,p});tmp.remove();pts=tmp=null};
+  W(db.ref('items/'+page).push({type:'s',uid:me.uid,nick:me.nick,createdAt:TS,c:col,w:sz,p}));tmp.remove();pts=tmp=null};
 const draw=()=>tmp.setAttribute('d','M'+pts.map(q=>q[0]+','+q[1]).join('L')+(pts.length===1?'L'+pts[0][0]+','+pts[0][1]:''));
 
 /* ---- กล่องพิมพ์ข้อความ/โพสต์อิท (จำกัด 200 คำ + กรองคำไม่สุภาพ) ---- */
@@ -234,8 +259,8 @@ function upd(){const t=$('#edt'),c=clean(t.value);if(c!==t.value)t.value=c;const
 $('#edt').oninput=upd; $('#edno').onclick=()=>{$('#ed').hidden=true};
 $('#edok').onclick=()=>{
   const t=clean($('#edt').value).trim(), {kind,xy,id}=edCtx; if(!t)return;
-  if(id)db.ref('items/'+page+'/'+id).update({t});
-  else db.ref('items/'+page).push({type:kind,t,uid:me.uid,nick:me.nick,createdAt:TS,x:Math.round(Math.max(0,Math.min(980,xy[0]))),y:Math.round(Math.max(0,Math.min(560,xy[1]))),s:1,c:kind==='n'?ncol:col});
+  if(id)W(db.ref('items/'+page+'/'+id).update({t}));
+  else W(db.ref('items/'+page).push({type:kind,t,uid:me.uid,nick:me.nick,createdAt:TS,x:Math.round(Math.max(0,Math.min(980,xy[0]))),y:Math.round(Math.max(0,Math.min(560,xy[1]))),s:1,c:kind==='n'?ncol:col}));
   $('#ed').hidden=true;
 };
 
@@ -243,7 +268,7 @@ $('#edok').onclick=()=>{
 function buildUI(){
   const T=$('#tools');TOOLS.forEach(([k,n])=>{const b=document.createElement('button');b.textContent=n;b.dataset.k=k;b.onclick=()=>{tool=k;ui()};T.append(b)});
   $('#bgsel').innerHTML=BG.map(([n,c])=>`<option value="${c}">🎨 ${n}</option>`).join('');
-  $('#bgsel').onchange=e=>db.ref('pages/'+page).update({bg:e.target.value}); ui();
+  $('#bgsel').onchange=e=>{if(need())W(db.ref('pages/'+page).update({bg:e.target.value}))}; ui();
 }
 function ui(){
   document.body.className='t-'+tool; document.querySelectorAll('#tools button').forEach(b=>b.classList.toggle('on',b.dataset.k===tool));
